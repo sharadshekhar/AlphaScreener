@@ -2,11 +2,9 @@ import os
 import sys
 sys.path.append("../common")
 import logging
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import Utils
-from stockUtils import stockUtils as su
 from tqdm import tqdm
 
 
