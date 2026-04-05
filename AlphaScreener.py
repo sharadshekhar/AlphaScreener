@@ -1,5 +1,5 @@
-import sys 
-import os 
+import sys
+import os
 import logging
 import argparse
 import pickle
@@ -9,7 +9,6 @@ from sdatareader import SDataReader
 from Trendline import Trendline
 from encrypt_pickle import load_encrypted_pickle
 import pandas as pd
-import pandas_ta as ta
 import numpy as np
 
 CACHE_FILE = os.path.join(os.path.dirname(__file__), "data_cache.pkl.enc")
@@ -21,13 +20,13 @@ class AlphaScreener:
                 "Decryption key is required to access the data.\n"
                 "Please enter the decryption key in the sidebar to run the screener."
             )
-        
+
         if not os.path.exists(CACHE_FILE):
             raise FileNotFoundError(
                 f"Data cache file not found: {CACHE_FILE}\n\n"
                 "Please ensure the encrypted pickle file exists before running the screener."
             )
-        
+
         self.decrypt_key = decrypt_key
         self.reader = SDataReader()
         self.tline = Trendline()
@@ -53,18 +52,18 @@ class AlphaScreener:
                 "Incorrect decryption key. Please check your key and try again.\n"
                 "If you don't have the correct key, contact the administrator."
             )
-        
+
         for ticker, df in df_data_dict.items():
             df['3_day_pct_return'] = df['Close'].pct_change(periods=3)
             df['5_day_pct_return'] = df['Close'].pct_change(periods=5)
-        
+
         return df_data_dict
 
     def _prepare_benchmark(self):
         """Prepares SPY as the master calendar and return series."""
         if 'SPY' not in self.data:
             raise ValueError("SPY must be in the data dictionary as a benchmark.")
-        
+
         spy = self.data['SPY'].copy()
         spy.index = pd.to_datetime(spy.index, errors='coerce')
         spy = spy[spy.index.notna()]
@@ -88,7 +87,7 @@ class AlphaScreener:
         # 2. Handle Gaps: Prices stay flat, Volume goes to zero
         aligned['Close'] = aligned['Close'].ffill()
         aligned['Volume'] = aligned['Volume'].fillna(0)
-        
+
         # 3. Calculate Returns and Alpha
         aligned['stock_ret'] = aligned['Close'].pct_change().fillna(0)
         aligned = aligned.join(self.spy_df['spy_ret'], how='left')
@@ -118,11 +117,11 @@ class AlphaScreener:
 
         status = pd.Series(index=df.index, dtype=object)
         status[:] = "PULLBACK"
-        
+
         mask_extended = extension_pct > 8
         mask_breakout = (extension_pct < 3) & (batting_avg_5d >= 4)
         mask_coiling = df['is_contracting']
-        
+
         status[mask_coiling] = "COILING"
         status[mask_breakout] = "FRESH BREAKOUT"
         status[mask_extended] = "EXTENDED (AVOID)"
@@ -132,7 +131,7 @@ class AlphaScreener:
 
     def _analyze_status_history(self, df_with_status, lookback_days=60):
         """Analyze status transitions over the lookback period.
-        
+
         Returns:
             current_status, previous_status, days_since_change, days_in_prev_status
         """
@@ -176,21 +175,21 @@ class AlphaScreener:
             try:
                 # --- Step 1: Data Alignment ---
                 df_aligned = self.align_ticker_data(df)
-                
+
                 # --- Step 2: Z-Score (Standardized Alpha) ---
                 alpha_mean = df_aligned['alpha'].rolling(window=self.lookback).mean()
                 alpha_std = df_aligned['alpha'].rolling(window=self.lookback).std()
-                
-                df_aligned['z_score'] = np.where(alpha_std > 0, 
-                                               (df_aligned['alpha'] - alpha_mean) / alpha_std, 
+
+                df_aligned['z_score'] = np.where(alpha_std > 0,
+                                               (df_aligned['alpha'] - alpha_mean) / alpha_std,
                                                0)
 
                 # --- Step 3: Extract Last 5 Days ---
                 last_5 = df_aligned.tail(5)
-                
+
                 batting_avg = np.sum(last_5['alpha'] > 0)
                 avg_z_5d = last_5['z_score'].mean()
-                
+
                 current_vol = df_aligned['Volume'].iloc[-1]
                 avg_vol_5d = df_aligned['Volume'].rolling(5).mean().iloc[-1]
                 rvol = current_vol / avg_vol_5d if avg_vol_5d > 0 else 0
@@ -266,9 +265,9 @@ class AlphaScreener:
                 continue
 
         final_df = pd.DataFrame(results)
-        
+
         final_df = final_df.sort_values(
-            by=['Batting_Avg', 'Z_Score_5D', 'RVOL'], 
+            by=['Batting_Avg', 'Z_Score_5D', 'RVOL'],
             ascending=[False, False, False]
         ).reset_index(drop=True)
 
@@ -356,10 +355,10 @@ class AlphaScreener:
         df = df[df.index.notna()]
         df = df[df.index >= '2024-01-01']
         df = df.sort_index()
-        
+
         if df.empty:
             return pd.DataFrame()
-            
+
         cutoff = df.index[-1] - timedelta(days=days)
         df = df[df.index >= cutoff]
         df = df[df.index <= datetime.now()]
